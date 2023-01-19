@@ -1,12 +1,12 @@
 function select(query, xs, config) {
-    const predicate = compile(parse(query), config);
+    const predicate = compile(parse(query, config), config);
     return xs.filter(predicate);
 }
 
 function compile(ast, config) {
     if (ast.type === 'CONJUNCTION') {
-        const lhs = compile(ast.lhs);
-        const rhs = compile(ast.rhs);
+        const lhs = compile(ast.lhs, compile);
+        const rhs = compile(ast.rhs, compile);
 
         if (ast.joint === 'AND') {
             return function(x) {
@@ -50,7 +50,7 @@ function compile(ast, config) {
         }
     }
     if (ast.type === 'SELECTION') {
-        const f = compile(ast.val);
+        const f = compile(ast.val, config);
         return function(row) {
             return ast.negate ? !f(row[ast.key]) : f(row[ast.key]);
         };
@@ -225,16 +225,16 @@ function parser(tokens) {
     return { i: 0, tokens };
 }
 
-function parse(x) {
+function parse(x, config) {
     const tokens = tokenize(x);
     const p = parser(tokens);
-    return conjunction(p);
+    return conjunction(p, config);
 }
 
-function conjunction(p) {
+function conjunction(p, config) {
     skipWhitespace(p);
 
-    const lhs = selection(p);
+    const lhs = selection(p, config);
     skipWhitespace(p);
 
     if (p.i >= p.tokens.length) {
@@ -250,7 +250,7 @@ function conjunction(p) {
         p.i += 1;
     }
     skipWhitespace(p);
-    let rhs = conjunction(p);
+    let rhs = conjunction(p, config);
 
     return {
         type: 'CONJUNCTION',
@@ -267,7 +267,7 @@ function peekType(n, p) {
     return null;
 }
 
-function selection(p) {
+function selection(p, config) {
     // column:value OR -column:value
     if ((peekType(0, p) === 'ATOM' && peekType(1, p) === 'COLON') ||
         (peekType(0, p) === 'NEGATE' && peekType(1, p) === 'ATOM' && peekType(2, p) === 'COLON')) {
@@ -289,7 +289,7 @@ function selection(p) {
                 val,
             };
         } else {
-            const val = value(p);
+            const val = value(p, config);
             return {
                 type: 'SELECTION',
                 negate,
