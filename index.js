@@ -1,4 +1,9 @@
 function select(query, xs, config) {
+    // naive optimizations
+    if (query === '' || xs === []) {
+        return xs;
+    }
+
     const predicate = compile(parse(query, config), config);
     return xs.filter(predicate);
 }
