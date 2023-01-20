@@ -53,6 +53,7 @@ function compile(ast, config) {
         const f = compile(ast.val, config);
 
         let compare = null;
+        if (ast.operator === 'EQ') { compare = (x, y) => x === y; }
         if (ast.operator === 'LT') { compare = (x, y) => x < y; }
         if (ast.operator === 'GT') { compare = (x, y) => x > y; }
         if (ast.operator === 'LTE') { compare = (x, y) => x <= y; }
@@ -148,6 +149,11 @@ function tokenize(x) {
                 i += 1;
             }
             result.push(['ATOM', curr]);
+            continue;
+        }
+        if (x[i] === '=') {
+            result.push(['COMPARE', 'EQ']);
+            i += 1;
             continue;
         }
         if (x[i] === '<' && i + 1 < x.length && x[i + 1] === '=') {
