@@ -166,7 +166,7 @@ function tokenize(x) {
         }
         if (x[i] === '<' && i + 1 < x.length && x[i + 1] === '=') {
             result.push(['COMPARE', 'LTE']);
-            i += 1;
+            i += 2;
             continue;
         }
         if (x[i] === '<') {
@@ -176,7 +176,7 @@ function tokenize(x) {
         }
         if (x[i] === '>' && i + i < x.length && x[i + 1] === '=') {
             result.push(['COMPARE', 'GTE']);
-            i += 1;
+            i += 2;
             continue;
         }
         if (x[i] === '>') {

@@ -15,7 +15,11 @@ const cfg = {
     dateKey: 'birthday',
 };
 const tests = [
-    ['support numeric comparisons', 'age=83', xs, cfg, [john]],
+    ['support EQ', 'age=83', xs, cfg, [john]],
+    ['supports LT', 'age<83', xs, cfg, [graham]],
+    ['supports LTE', 'age<=83', xs, cfg, [john, graham]],
+    ['supports GT', 'age>48', xs, cfg, [john]],
+    ['supports GTE', 'age>=48', xs, cfg, [john, graham]],
     ['supports grouping (1)', 'last:/^C/ (age=83 OR age=48)', xs, cfg, [john, graham]],
     ['supports grouping (2)', '(age=83)', xs, cfg, [john]],
     ['supports grouping (3)', '(age=83 OR age=48)', xs, cfg, [john, graham]],
@@ -44,7 +48,7 @@ class App extends React.Component {
                     const [label, query, xs, cfg, expected] = test;
                     const actual = select(query, xs, cfg);
                     return (
-                        <tr>
+                        <tr style={{backgroundColor: equal(actual, expected) ? null : 'red'}}>
                           <td>{equal(actual, expected) ? "pass" : "fail"}</td>
                           <td>{label}</td>
                           <td>select("{query}", {JSON.stringify(xs)}, {JSON.stringify(cfg)})</td>
