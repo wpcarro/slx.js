@@ -49,6 +49,19 @@ function compile(ast, config) {
             };
         }
     }
+    if (ast.type === 'COMPARE_SELECTION') {
+        const f = compile(ast.val, config);
+
+        let compare = null;
+        if (ast.operator === 'LT') { compare = (x, y) => x < y; }
+        if (ast.operator === 'GT') { compare = (x, y) => x > y; }
+        if (ast.operator === 'LTE') { compare = (x, y) => x <= y; }
+        if (ast.operator === 'GTE') { compare = (x, y) => x >= y; }
+
+        return function(row) {
+            return ast.negate ? !compare(row[ast.key], ast.val) : compare(row[ast.key], ast.val);
+        };
+    }
     if (ast.type === 'SELECTION') {
         const f = compile(ast.val, config);
         return function(row) {
@@ -116,6 +129,17 @@ function tokenize(x) {
             i += 1;
             continue;
         }
+        // Tokenize numbers (i.e. integers, floats).
+        if (/[0-9]/.test(x[i])) {
+            let curr = x[i];
+            i += 1;
+            while (i < x.length && /[0-9]/.test(x[i])) {
+                curr += x[i];
+                i += 1;
+            }
+            result.push(['NUMBER', parseFloat(curr)]);
+            continue;
+        }
         if (ATOM_REGEX.test(x[i])) {
             let curr = x[i];
             i += 1;
@@ -124,6 +148,26 @@ function tokenize(x) {
                 i += 1;
             }
             result.push(['ATOM', curr]);
+            continue;
+        }
+        if (x[i] === '<' && i + 1 < x.length && x[i + 1] === '=') {
+            result.push(['COMPARE', 'LTE']);
+            i += 1;
+            continue;
+        }
+        if (x[i] === '<') {
+            result.push(['COMPARE', 'LT']);
+            i += 1;
+            continue;
+        }
+        if (x[i] === '>' && i + i < x.length && x[i + 1] === '=') {
+            result.push(['COMPARE', 'GTE']);
+            i += 1;
+            continue;
+        }
+        if (x[i] === '>') {
+            result.push(['COMPARE', 'GT']);
+            i += 1;
             continue;
         }
         if (x[i] === ':') {
@@ -297,7 +341,29 @@ function selection(p, config) {
                 val,
             };
         }
-    } else {
+    }
+    // column<value OR -column<value
+    else if ((peekType(0, p) === 'ATOM' && peekType(1, p) === 'COMPARE') ||
+             (peekType(0, p) === 'NEGATE' && peekType(1, p) === 'ATOM' && peekType(2, p) === 'COMPARE')) {
+        let negate = false;
+        if (p.tokens[p.i][0] === 'NEGATE') {
+            negate = true;
+            p.i += 1;
+        }
+
+        const key = match((type, _) => type === 'ATOM', 'a column label', p);
+        const operator = match((type, _) => type === 'COMPARE', 'a comparison operator (i.e. "<", ">", "<=", ">=")', p);
+        const val = match((type, _) => type === 'NUMBER', 'a number', p);
+
+        return {
+            type: 'COMPARE_SELECTION',
+            operator,
+            negate,
+            key,
+            val,
+        };
+    }
+    else {
         return matchAll(p, config);
     }
 }
