@@ -92,6 +92,9 @@ function compile(ast, config) {
             };
         }
     }
+    if (ast.type === 'GROUPING') {
+        return compile(ast.content);
+    }
     if (ast.type === 'STRING') {
         return function(x) {
             if (config.caseSensitive) {
@@ -276,6 +279,13 @@ function skipWhitespace(p) {
     }
 }
 
+function peekType(n, p) {
+    if (p.i + n < p.tokens.length) {
+        return p.tokens[p.i + n][0];
+    }
+    return null;
+}
+
 function parser(tokens) {
     return { i: 0, tokens };
 }
@@ -292,6 +302,12 @@ function conjunction(p, config) {
     const lhs = selection(p, config);
     skipWhitespace(p);
 
+    // TODO(wpcarro): Consider re-architecting the parser to avoid smells like
+    // this.
+    if (peekType(0, p) === 'RPAREN') {
+        return lhs;
+    }
+
     if (p.i >= p.tokens.length) {
         return lhs;
     }
@@ -305,7 +321,7 @@ function conjunction(p, config) {
         p.i += 1;
     }
     skipWhitespace(p);
-    let rhs = conjunction(p, config);
+    const rhs = conjunction(p, config);
 
     return {
         type: 'CONJUNCTION',
@@ -313,13 +329,6 @@ function conjunction(p, config) {
         lhs,
         rhs,
     };
-}
-
-function peekType(n, p) {
-    if (p.i + n < p.tokens.length) {
-        return p.tokens[p.i + n][0];
-    }
-    return null;
 }
 
 function selection(p, config) {
@@ -400,6 +409,15 @@ function matchAll(p, config) {
         p.i += 1;
         const regex = config.caseSensitive ? new RegExp(val) : new RegExp(val, "i");
         return { type: 'MATCH_ALL', matchType: 'REGEX', val: regex };
+    }
+    if (type === 'LPAREN') {
+        p.i += 1;
+        const content = conjunction(p, config);
+        expect((type, _) => type === 'RPAREN', 'a closing parenthesis', p);
+        return {
+            type: 'GROUPING',
+            content,
+        };
     }
     throw `Parse Error: Expected a regular expression or a string, but got: ${p.tokens[p.i]}; ${JSON.stringify(p)}`;
 }
